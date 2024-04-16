@@ -13,6 +13,7 @@ llama-index-vector-stores-pinecone = "*"
 pinecone-client = "*"
 black = "*"
 unstructured = "*"
+streamlit = "*"
 
 [dev-packages]
 
