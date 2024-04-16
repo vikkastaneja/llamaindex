@@ -2,13 +2,13 @@ import os
 from dotenv import load_dotenv
 from llama_index.core.callbacks import LlamaDebugHandler, CallbackManager
 from llama_index.core.chat_engine.types import ChatMode
+from llama_index.llms.openai import OpenAI
 
 load_dotenv()
 import streamlit as st
 from pinecone import Pinecone
 from llama_index.core import VectorStoreIndex, Settings
 from llama_index.vector_stores.pinecone import PineconeVectorStore
-
 
 @st.cache_resource(show_spinner=False)
 def get_index() -> VectorStoreIndex:
@@ -24,11 +24,11 @@ def get_index() -> VectorStoreIndex:
 
 
 index = get_index()
+llm = OpenAI(model="gpt-3.5-turbo", temperature=0)
 if "chat_engine" not in st.session_state.keys():
     st.session_state.chat_engine = index.as_chat_engine(
-        chat_mode=ChatMode.CONTEXT, verbose=True
+        chat_mode=ChatMode.CONTEXT, verbose=True, llm=llm
     )
-
 
 st.set_page_config(
     page_title="Chat with Llamaindex docs, powered by Llama Index",
@@ -55,12 +55,20 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.write(message["content"])
 
-
-if st.session_state.messages[-1]["role"] == "user":
+if st.session_state.messages[-1]["role"] != "assistant":
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
             response = st.session_state.chat_engine.chat(message=prompt)
             st.write(response.response)
-            message = {"role": "assistant", "content": response.response}
+
+            nodes = [node for node in response.source_nodes]
+            total_nodes = len(nodes)
+            print(total_nodes)
+            # print(nodes)
+            for col, node in zip(st.columns(len(nodes)), nodes):
+                with col:
+                    st.header(f'Source node: score={node.score}')
+
+            message = {'role': 'assistant', 'content': response.response}
 
             st.session_state.messages.append(message)
